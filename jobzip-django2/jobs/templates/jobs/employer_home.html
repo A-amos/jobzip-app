@@ -1,0 +1,246 @@
+{% extends 'jobs/base.html' %}
+{% load static %}
+
+{% block title %}Employer Dashboard - JobZip{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Toast Container -->
+    <div class="toast-container"></div>
+
+    <!-- Welcome Section -->
+    <div class="bg-dark text-light rounded-3 p-4 mb-4">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-4 mb-3">Welcome back, {{ user.username }}!</h1>
+                <p class="lead mb-0">Manage your job postings and review applications from potential candidates.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Active Job Postings -->
+        <div class="col-lg-6 mb-4">
+            <div class="card bg-dark border-secondary h-100">
+                <div class="card-header bg-dark border-secondary">
+                    <h5 class="mb-0">Active Job Postings</h5>
+                </div>
+                <div class="card-body">
+                    {% for job in active_jobs %}
+                    <div class="mb-3 pb-3 border-bottom border-secondary {% if forloop.last %}border-0 pb-0 mb-0{% endif %}" id="job-card-{{ job.id }}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">{{ job.title }}</h6>
+                                <div class="text-primary mb-2">{{ job.company }}</div>
+                                <div class="d-flex flex-wrap gap-2 mb-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-map-marker-alt me-1"></i>{{ job.location }}
+                                    </small>
+                                    <small class="text-success">
+                                        <i class="fas fa-money-bill-wave me-1"></i>{{ job.salary }}
+                                    </small>
+                                    <small class="text-info">
+                                        <i class="fas fa-users me-1"></i>{{ job.applications.count }} applications
+                                    </small>
+                                </div>
+                            </div>
+                            <button class="btn btn-outline-danger btn-sm" onclick="closeJob({{ job.id }});">
+                                <i class="fas fa-times me-1"></i>Close
+                            </button>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted mb-0">No active job postings.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Applications -->
+        <div class="col-lg-6 mb-4">
+            <div class="card bg-dark border-secondary h-100">
+                <div class="card-header bg-dark border-secondary">
+                    <h5 class="mb-0">Recent Applications</h5>
+                </div>
+                <div class="card-body">
+                    {% for application in recent_applications %}
+                    <div class="mb-3 pb-3 border-bottom border-secondary {% if forloop.last %}border-0 pb-0 mb-0{% endif %}" id="application-{{ application.id }}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">{{ application.job.title }}</h6>
+                                <div class="text-primary mb-2">
+                                    Applied by: {{ application.applicant.username }}
+                                    <small class="text-muted ms-2">{{ application.applied_at|timesince }} ago</small>
+                                </div>
+                                <div class="mb-2">
+                                    {% if application.cover_letter %}
+                                    <button class="btn btn-link text-primary p-0 me-3" onclick="viewCoverLetter({{ application.id }});">
+                                        <i class="fas fa-file-alt me-1"></i>View Cover Letter
+                                    </button>
+                                    {% endif %}
+                                    {% if application.resume %}
+                                    <a href="{{ application.resume.url }}" class="btn btn-link text-primary p-0" target="_blank">
+                                        <i class="fas fa-file-pdf me-1"></i>View Resume
+                                    </a>
+                                    {% endif %}
+                                </div>
+                                <div class="application-status">
+                                    {% if application.status == 'accepted' %}
+                                    <span class="badge bg-success">Accepted</span>
+                                    {% elif application.status == 'rejected' %}
+                                    <span class="badge bg-danger">Rejected</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if application.status == 'pending' %}
+                            <div class="btn-group action-buttons">
+                                <button class="btn btn-success btn-sm me-2" onclick="handleApplication({{ application.id }}, 'accept')">
+                                    <i class="fas fa-check me-1"></i>Accept
+                                </button>
+                                <button class="btn btn-danger btn-sm" onclick="handleApplication({{ application.id }}, 'reject')">
+                                    <i class="fas fa-times me-1"></i>Reject
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted mb-0">No recent applications.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cover Letter Modal -->
+<div class="modal fade" id="coverLetterModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title">Cover Letter</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="coverLetterContent"></div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    // Toast notification function
+    function showToast(message, type = 'info') {
+        const toastContainer = document.querySelector('.toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <span>${message}</span>
+                <button type="button" class="btn-close btn-close-white" onclick="this.parentElement.parentElement.remove()"></button>
+            </div>
+        `;
+        toastContainer.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 100);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // Close job function
+    function closeJob(jobId) {
+        if (confirm('Are you sure you want to close this job posting? This action cannot be undone.')) {
+            const card = document.querySelector(`#job-card-${jobId}`);
+            card.style.transition = 'all 0.3s ease-in-out';
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.8)';
+            
+            fetch(`/job/${jobId}/close/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    card.addEventListener('transitionend', () => {
+                        card.remove();
+                        // Remove empty space
+                        const container = card.parentElement;
+                        if (container.children.length === 0) {
+                            container.innerHTML = '<p class="text-muted mb-0">No active job postings.</p>';
+                        }
+                    });
+                    showToast('Job posting closed successfully', 'success');
+                } else {
+                    card.style.opacity = '1';
+                    card.style.transform = 'scale(1)';
+                    showToast('Failed to close job posting', 'error');
+                }
+            })
+            .catch(error => {
+                card.style.opacity = '1';
+                card.style.transform = 'scale(1)';
+                showToast('An error occurred', 'error');
+            });
+        }
+    }
+
+    // Handle application function
+    function handleApplication(applicationId, action) {
+        const actionTitle = action === 'accept' ? 'accept' : 'reject';
+        if (confirm(`Are you sure you want to ${actionTitle} this application?`)) {
+            const card = document.querySelector(`#application-${applicationId}`);
+            const buttons = card.querySelectorAll('button');
+            buttons.forEach(btn => btn.disabled = true);
+            
+            fetch(`/application/${applicationId}/${action}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const statusDiv = card.querySelector('.application-status');
+                    const btnGroup = card.querySelector('.action-buttons');
+                    const statusClass = action === 'accept' ? 'success' : 'danger';
+                    const statusText = action === 'accept' ? 'Accepted' : 'Rejected';
+                    
+                    // Update status badge
+                    statusDiv.innerHTML = `<span class="badge bg-${statusClass}">${statusText}</span>`;
+                    
+                    // Remove action buttons with animation
+                    btnGroup.style.transition = 'all 0.3s ease-in-out';
+                    btnGroup.style.opacity = '0';
+                    btnGroup.addEventListener('transitionend', () => {
+                        btnGroup.remove();
+                    });
+                    
+                    showToast(`Application ${actionTitle}ed successfully`, 'success');
+                } else {
+                    buttons.forEach(btn => btn.disabled = false);
+                    showToast(`Failed to ${actionTitle} application`, 'error');
+                }
+            })
+            .catch(error => {
+                buttons.forEach(btn => btn.disabled = false);
+                showToast('An error occurred', 'error');
+            });
+        }
+    }
+
+    // View cover letter function
+    function viewCoverLetter(applicationId) {
+        fetch(`/application/${applicationId}/cover-letter/`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('coverLetterContent').textContent = data.cover_letter;
+                new bootstrap.Modal(document.getElementById('coverLetterModal')).show();
+            });
+    }
+</script>
+{% endblock %}
+{% endblock %}

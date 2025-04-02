@@ -1,0 +1,124 @@
+{% extends 'jobs/base.html' %}
+{% load static %}
+
+{% block title %}Applications for {{ job.title }} - JobZip{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <!-- Job Details -->
+            <div class="card bg-dark border-secondary mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h4 class="card-title mb-1">{{ job.title }}</h4>
+                            <div class="text-primary">{{ job.company }}</div>
+                        </div>
+                        <span class="badge {% if job.status == 'open' %}bg-success{% else %}bg-danger{% endif %}">
+                            {{ job.get_status_display }}
+                        </span>
+                    </div>
+                    <div class="d-flex flex-wrap gap-3 mb-3">
+                        <div class="text-muted">
+                            <i class="fas fa-map-marker-alt me-2"></i>{{ job.location }}
+                        </div>
+                        <div class="text-success">
+                            <i class="fas fa-money-bill-wave me-2"></i>{{ job.salary }}
+                        </div>
+                        <div class="text-info">
+                            <i class="fas fa-clock me-2"></i>Posted {{ job.created_at|timesince }} ago
+                        </div>
+                    </div>
+                    <p class="text-muted mb-0">{{ job.description|truncatewords:50 }}</p>
+                </div>
+            </div>
+
+            <!-- Applications List -->
+            <h5 class="mb-4">Applications ({{ applications.count }})</h5>
+            
+            {% for application in applications %}
+            <div class="card bg-dark border-secondary mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h5 class="card-title mb-1">{{ application.applicant.get_full_name|default:application.applicant.username }}</h5>
+                            <div class="text-muted">Applied {{ application.applied_at|timesince }} ago</div>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <span class="badge {% if application.status == 'pending' %}bg-warning{% elif application.status == 'accepted' %}bg-success{% elif application.status == 'rejected' %}bg-danger{% endif %}">
+                                    {{ application.get_status_display }}
+                                </span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <button class="dropdown-item" onclick="updateStatus({{ application.id }}, 'accepted')">
+                                        <i class="fas fa-check text-success me-2"></i>Accept
+                                    </button>
+                                </li>
+                                <li>
+                                    <button class="dropdown-item" onclick="updateStatus({{ application.id }}, 'rejected')">
+                                        <i class="fas fa-times text-danger me-2"></i>Reject
+                                    </button>
+                                </li>
+                                <li>
+                                    <button class="dropdown-item" onclick="updateStatus({{ application.id }}, 'pending')">
+                                        <i class="fas fa-clock text-warning me-2"></i>Mark as Pending
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6 class="mb-2">Cover Letter</h6>
+                        <p class="text-muted mb-0">{{ application.cover_letter }}</p>
+                    </div>
+                    
+                    {% if application.resume %}
+                    <div>
+                        <a href="{{ application.resume.url }}" class="btn btn-outline-primary" target="_blank">
+                            <i class="fas fa-file-pdf me-2"></i>View Resume
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>No applications received yet.
+            </div>
+            {% endfor %}
+            
+            <!-- Back Button -->
+            <div class="mt-4">
+                <a href="{% url 'listings' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to Listings
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateStatus(applicationId, status) {
+    fetch(`/application/${applicationId}/status/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+        body: JSON.stringify({ status: status })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    });
+}
+</script>
+{% endblock %}

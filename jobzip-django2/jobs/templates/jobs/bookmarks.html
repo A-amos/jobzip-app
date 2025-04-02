@@ -1,0 +1,366 @@
+{% extends 'jobs/base.html' %}
+{% load static %}
+
+{% block title %}Bookmarked Jobs - JobZip{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed top-0 end-0 p-3"></div>
+
+    <!-- Header Section with Gradient -->
+    <div class="header-section text-light rounded-3 p-5 mb-4">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-4 fw-bold mb-3">Bookmarked Jobs</h1>
+                <p class="lead mb-0 opacity-75">Your saved job opportunities in one place.</p>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <a href="{% url 'listings' %}" class="btn btn-outline-light btn-lg">
+                    <i class="fas fa-search me-2"></i>Browse More Jobs
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Section -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary bg-gradient h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle bg-light p-3 me-3">
+                            <i class="fas fa-bookmark text-primary fa-2x"></i>
+                        </div>
+                        <div>
+                            <h3 class="card-title mb-0">{{ bookmarked_jobs.paginator.count }}</h3>
+                            <p class="card-text text-light mb-0">Saved Jobs</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-success bg-gradient h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle bg-light p-3 me-3">
+                            <i class="fas fa-paper-plane text-success fa-2x"></i>
+                        </div>
+                        <div>
+                            <h3 class="card-title mb-0">{{ user.jobapplication_set.count }}</h3>
+                            <p class="card-text text-light mb-0">Applications Sent</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info bg-gradient h-100">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle bg-light p-3 me-3">
+                            <i class="fas fa-clock text-info fa-2x"></i>
+                        </div>
+                        <div>
+                            <h3 class="card-title mb-0">{{ bookmarked_jobs.number }}</h3>
+                            <p class="card-text text-light mb-0">of {{ bookmarked_jobs.paginator.num_pages }} Pages</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bookmarked Jobs -->
+    <div class="row g-4">
+        {% for job in bookmarked_jobs %}
+        <div class="col-lg-6 mb-4 job-card-wrapper">
+            <div class="card bg-dark h-100 job-card">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h4 class="card-title mb-1">{{ job.title }}</h4>
+                            <div class="text-primary h5 mb-2">{{ job.company }}</div>
+                        </div>
+                        <span class="badge bg-primary px-3 py-2 rounded-pill">{{ job.get_job_type_display }}</span>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <div class="d-flex flex-wrap gap-4">
+                            <div class="text-muted d-flex align-items-center">
+                                <i class="fas fa-map-marker-alt me-2 text-danger"></i>{{ job.location }}
+                            </div>
+                            <div class="text-success d-flex align-items-center">
+                                <i class="fas fa-money-bill-wave me-2"></i>{{ job.salary }}
+                            </div>
+                            <div class="text-info d-flex align-items-center">
+                                <i class="fas fa-clock me-2"></i>Posted {{ job.created_at|timesince }} ago
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="card-text text-muted mb-4">{{ job.description|truncatewords:50 }}</p>
+
+                    <div class="d-flex justify-content-between align-items-center mt-auto">
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-primary px-4" onclick="applyForJob({{ job.id }})">
+                                <i class="fas fa-paper-plane me-2"></i>Apply Now
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" onclick="toggleBookmark({{ job.id }}, this)">
+                                <i class="fas fa-bookmark me-2"></i>Remove
+                            </button>
+                        </div>
+                        <div class="text-muted d-flex align-items-center">
+                            <i class="fas fa-users me-2"></i>
+                            <span>{{ job.applications.count }} applications</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info d-flex align-items-center p-4">
+                <i class="fas fa-info-circle fa-2x me-3"></i>
+                <div>
+                    <h4 class="alert-heading mb-2">No Bookmarked Jobs</h4>
+                    <p class="mb-0">You haven't bookmarked any jobs yet. 
+                        <a href="{% url 'listings' %}" class="alert-link">Browse jobs</a> to find opportunities that interest you.
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if bookmarked_jobs.has_other_pages %}
+    <nav class="mt-5" aria-label="Page navigation">
+        <ul class="pagination pagination-lg justify-content-center">
+            {% if bookmarked_jobs.has_previous %}
+            <li class="page-item">
+                <a class="page-link bg-dark border-secondary" href="?page={{ bookmarked_jobs.previous_page_number }}">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+            
+            {% for num in bookmarked_jobs.paginator.page_range %}
+                {% if bookmarked_jobs.number == num %}
+                <li class="page-item active">
+                    <span class="page-link bg-primary border-primary">{{ num }}</span>
+                </li>
+                {% else %}
+                <li class="page-item">
+                    <a class="page-link bg-dark border-secondary" href="?page={{ num }}">{{ num }}</a>
+                </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if bookmarked_jobs.has_next %}
+            <li class="page-item">
+                <a class="page-link bg-dark border-secondary" href="?page={{ bookmarked_jobs.next_page_number }}">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    <!-- Application Modal -->
+    <div class="modal fade" id="applicationModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">Apply for Position</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="applicationForm" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <input type="hidden" name="job_id" id="job_id">
+                        
+                        <div class="mb-4">
+                            <label for="cover_letter" class="form-label">Cover Letter</label>
+                            <textarea class="form-control bg-darker border-secondary" id="cover_letter" name="cover_letter" rows="6" placeholder="Why are you a good fit for this position?"></textarea>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="resume" class="form-label">Resume (PDF)</label>
+                            <input type="file" class="form-control bg-darker border-secondary" id="resume" name="resume" accept=".pdf">
+                            <div class="form-text text-muted">Maximum file size: 5MB</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary px-4" onclick="submitApplication()">
+                        <i class="fas fa-paper-plane me-2"></i>Submit Application
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.header-section {
+    background: linear-gradient(135deg, #1a75ff 0%, #0d6efd 100%);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.job-card-wrapper {
+    transition: transform 0.3s ease;
+}
+
+.job-card-wrapper:hover {
+    transform: translateY(-5px);
+}
+
+.job-card {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.bg-darker {
+    background-color: #1a1e21;
+}
+
+.badge {
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+.pagination .page-link {
+    color: #fff;
+    padding: 0.75rem 1.25rem;
+    font-size: 1.1rem;
+}
+
+.pagination .page-link:hover {
+    background-color: #2c3034;
+}
+
+.pagination .active .page-link {
+    z-index: 3;
+    color: #fff;
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.toast {
+    background: rgba(33, 37, 41, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.alert {
+    border: none;
+    background: rgba(13, 202, 240, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(13, 202, 240, 0.2);
+}
+
+.modal-content {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.form-control:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+</style>
+
+<script>
+function applyForJob(jobId) {
+    document.getElementById('job_id').value = jobId;
+    new bootstrap.Modal(document.getElementById('applicationModal')).show();
+}
+
+function submitApplication() {
+    const form = document.getElementById('applicationForm');
+    const formData = new FormData(form);
+    
+    fetch('{% url "apply_job" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Application submitted successfully!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('applicationModal')).hide();
+            form.reset();
+        } else {
+            showToast(data.message || 'Error submitting application', 'error');
+        }
+    })
+    .catch(error => {
+        showToast('Error submitting application', 'error');
+    });
+}
+
+function toggleBookmark(jobId, button) {
+    fetch(`/jobs/${jobId}/bookmark/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+            const card = button.closest('.job-card-wrapper');
+            card.style.transform = 'translateX(-100%)';
+            card.style.opacity = '0';
+            setTimeout(() => {
+                card.remove();
+                // Check if there are no more jobs
+                const jobCards = document.querySelectorAll('.job-card-wrapper');
+                if (jobCards.length === 0) {
+                    location.reload(); // Reload to show the empty state
+                }
+            }, 300);
+        } else {
+            showToast(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showToast('Error removing bookmark', 'error');
+    });
+}
+
+function showToast(message, type = 'info') {
+    const toastContainer = document.querySelector('.toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type} show`;
+    toast.style.transition = 'all 0.3s ease';
+    toast.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center p-3">
+            <span>${message}</span>
+            <button type="button" class="btn-close btn-close-white" onclick="this.parentElement.parentElement.remove()"></button>
+        </div>
+    `;
+    toastContainer.appendChild(toast);
+    
+    // Animate in
+    toast.style.transform = 'translateX(0)';
+    toast.style.opacity = '1';
+    
+    setTimeout(() => {
+        // Animate out
+        toast.style.transform = 'translateX(100%)';
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+</script>
+{% endblock %}

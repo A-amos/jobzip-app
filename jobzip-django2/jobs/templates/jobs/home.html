@@ -1,0 +1,218 @@
+{% extends 'jobs/base.html' %}
+{% load static %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Job Market Feed</h2>
+        <div class="dropdown">
+            <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                Filter Jobs
+            </button>
+            <ul class="dropdown-menu bg-darker">
+                <li><a class="dropdown-item text-light" href="{% url 'home' %}">All</a></li>
+                <li><a class="dropdown-item text-light" href="{% url 'home' %}?filter=your_location">Your Location</a></li>
+                <li>
+                    <a class="dropdown-item text-light" href="#" data-bs-toggle="modal" data-bs-target="#locationModal">
+                        Other Location
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item text-light" href="#" data-bs-toggle="modal" data-bs-target="#durationModal">
+                        Duration
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item text-light" href="#" data-bs-toggle="modal" data-bs-target="#companyModal">
+                        Company
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="job-feed">
+        {% for job in jobs %}
+        <div class="job-card bg-darker">
+            <div class="job-card-header">
+                <div class="company-info">
+                    {% if job.company_pictures.first %}
+                    <img src="{{ job.company_pictures.first.image.url }}" alt="{{ job.company }}" class="company-logo">
+                    {% else %}
+                    <div class="company-logo-placeholder">
+                        <i class="fas fa-building"></i>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <h3>{{ job.title }}</h3>
+                        <p class="company-name">{{ job.company }}</p>
+                    </div>
+                </div>
+                <button class="btn btn-link bookmark-btn {% if job.id in bookmarked_jobs %}active{% endif %}"
+                        data-job-id="{{ job.id }}">
+                    <i class="fas fa-bookmark"></i>
+                </button>
+            </div>
+            <div class="job-card-body">
+                <div class="job-details">
+                    <p><i class="fas fa-map-marker-alt"></i> {{ job.location }}</p>
+                    <p><i class="fas fa-clock"></i> {{ job.duration }}</p>
+                    <p><i class="fas fa-users"></i> {{ job.employees_required }} employees required</p>
+                    <p><i class="fas fa-calendar-alt"></i> Deadline: {{ job.deadline|date:"M d, Y" }}</p>
+                </div>
+                <p class="job-description">{{ job.description|truncatewords:50 }}</p>
+            </div>
+            <div class="job-card-footer">
+                {% if user.user_type == 'employee' and not job.id in enrolled_jobs %}
+                <button class="btn btn-primary enroll-btn" data-job-id="{{ job.id }}">Apply Now</button>
+                {% endif %}
+                <button class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#jobModal{{ job.id }}">
+                    More Details
+                </button>
+            </div>
+        </div>
+
+        <!-- Job Details Modal -->
+        <div class="modal fade" id="jobModal{{ job.id }}" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content bg-darker text-light">
+                    <div class="modal-header">
+                        <h5 class="modal-title">{{ job.title }}</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="company-images mb-4">
+                            {% for picture in job.company_pictures.all %}
+                            <img src="{{ picture.image.url }}" alt="{{ job.company }}" class="company-image">
+                            {% endfor %}
+                        </div>
+                        <h6>About the Company</h6>
+                        <p>{{ job.company }}</p>
+                        <h6>Job Description</h6>
+                        <p>{{ job.description }}</p>
+                        <div class="job-meta">
+                            <div><i class="fas fa-map-marker-alt"></i> Location: {{ job.location }}</div>
+                            <div><i class="fas fa-clock"></i> Duration: {{ job.duration }}</div>
+                            <div><i class="fas fa-users"></i> Employees Required: {{ job.employees_required }}</div>
+                            <div><i class="fas fa-calendar-alt"></i> Deadline: {{ job.deadline|date:"F d, Y" }}</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        {% if user.user_type == 'employee' and not job.id in enrolled_jobs %}
+                        <button class="btn btn-primary enroll-btn" data-job-id="{{ job.id }}">Apply Now</button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-center py-5">
+            <i class="fas fa-search fa-3x mb-3"></i>
+            <h3>No jobs found</h3>
+            <p>Try adjusting your search criteria</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Filter Modals -->
+<div class="modal fade" id="locationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-darker text-light">
+            <div class="modal-header">
+                <h5 class="modal-title">Filter by Location</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{% url 'home' %}" method="get">
+                    <input type="hidden" name="filter" value="other_location">
+                    <div class="mb-3">
+                        <label for="location" class="form-label">Enter Location</label>
+                        <input type="text" class="form-control" id="location" name="location" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Apply Filter</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="durationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-darker text-light">
+            <div class="modal-header">
+                <h5 class="modal-title">Filter by Duration</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{% url 'home' %}" method="get">
+                    <input type="hidden" name="filter" value="duration">
+                    <div class="mb-3">
+                        <label for="duration" class="form-label">Enter Duration</label>
+                        <input type="text" class="form-control" id="duration" name="duration" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Apply Filter</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="companyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-darker text-light">
+            <div class="modal-header">
+                <h5 class="modal-title">Filter by Company</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="{% url 'home' %}" method="get">
+                    <input type="hidden" name="filter" value="company">
+                    <div class="mb-3">
+                        <label for="company" class="form-label">Enter Company Name</label>
+                        <input type="text" class="form-control" id="company" name="company" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Apply Filter</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Bookmark functionality
+    $('.bookmark-btn').click(function() {
+        const btn = $(this);
+        const jobId = btn.data('job-id');
+        
+        $.post(`/bookmark/toggle/${jobId}/`, {
+            'csrfmiddlewaretoken': '{{ csrf_token }}'
+        })
+        .done(function(response) {
+            if (response.status === 'added') {
+                btn.addClass('active');
+            } else {
+                btn.removeClass('active');
+            }
+        });
+    });
+
+    // Job enrollment functionality
+    $('.enroll-btn').click(function() {
+        const jobId = $(this).data('job-id');
+        // Add your enrollment logic here
+    });
+
+    // Company image gallery
+    $('.company-image').click(function() {
+        // Add your image gallery logic here
+    });
+});
+</script>
+{% endblock %}

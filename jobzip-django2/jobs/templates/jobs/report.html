@@ -1,0 +1,92 @@
+{% extends 'jobs/base.html' %}
+{% load static %}
+
+{% block title %}Report - JobZip{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card bg-dark border-secondary">
+                <div class="card-body">
+                    <h2 class="card-title mb-4">Report a User</h2>
+                    
+                    <form method="post" class="report-form">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="reported_user" class="form-label">User to Report</label>
+                            <select name="reported_user" id="reported_user" class="form-select bg-dark text-light border-secondary" required>
+                                <option value="">Select a user...</option>
+                                {% for user in users %}
+                                <option value="{{ user.id }}">{{ user.get_full_name }} ({{ user.username }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">Reason for Report</label>
+                            <textarea name="reason" id="reason" rows="5" class="form-control bg-dark text-light border-secondary" required
+                                placeholder="Please provide detailed information about why you are reporting this user..."></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-text text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Your report will be reviewed by our team. We take all reports seriously and will take appropriate action.
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-flag me-2"></i>Submit Report
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            {% if user_reports %}
+            <div class="card bg-dark border-secondary mt-4">
+                <div class="card-body">
+                    <h3 class="card-title mb-4">Your Previous Reports</h3>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Reported User</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Action Taken</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for report in user_reports %}
+                                <tr>
+                                    <td>{{ report.reported_user.get_full_name }}</td>
+                                    <td>{{ report.created_at|date:"M d, Y" }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ report.status|lower }}-subtle text-{{ report.status|lower }}">
+                                            {{ report.status }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if report.ban_duration %}
+                                        User banned for {{ report.ban_duration }} days
+                                        {% else %}
+                                        Pending review
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

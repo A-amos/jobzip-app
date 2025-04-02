@@ -1,0 +1,111 @@
+{% extends 'jobs/base.html' %}
+{% load static %}
+
+{% block title %}Apply for {{ job.title }} - JobZip{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Job Details -->
+    <div class="card bg-dark border-secondary mb-4">
+        <div class="card-body">
+            <h2 class="card-title mb-1">{{ job.title }}</h2>
+            <h5 class="text-primary mb-3">{{ job.company }}</h5>
+            
+            <div class="row mb-4">
+                <div class="col-md-3 mb-3 mb-md-0">
+                    <div class="d-flex align-items-center text-muted">
+                        <i class="fas fa-map-marker-alt me-2"></i>
+                        {{ job.location }}
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3 mb-md-0">
+                    <div class="d-flex align-items-center text-muted">
+                        <i class="fas fa-clock me-2"></i>
+                        {{ job.duration }}
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3 mb-md-0">
+                    <div class="d-flex align-items-center text-success">
+                        <i class="fas fa-money-bill-wave me-2"></i>
+                        {{ job.salary }}
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="d-flex align-items-center text-danger">
+                        <i class="fas fa-calendar-alt me-2"></i>
+                        Deadline: {{ job.deadline|date:"M d, Y" }}
+                    </div>
+                </div>
+            </div>
+            
+            <h6 class="mb-3">Job Description</h6>
+            <p class="card-text">{{ job.description }}</p>
+        </div>
+    </div>
+
+    <!-- Application Form -->
+    <div class="card bg-dark border-secondary">
+        <div class="card-body">
+            <h3 class="card-title mb-4">Submit Your Application</h3>
+            
+            <form method="post" enctype="multipart/form-data" id="applicationForm">
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label for="{{ form.cover_letter.id_for_label }}" class="form-label">Cover Letter</label>
+                    {{ form.cover_letter }}
+                    {% if form.cover_letter.errors %}
+                    <div class="text-danger mt-1">
+                        {{ form.cover_letter.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <label for="{{ form.resume.id_for_label }}" class="form-label">Resume</label>
+                    {{ form.resume }}
+                    <div class="form-text text-muted">Accepted formats: PDF, DOC, DOCX</div>
+                    {% if form.resume.errors %}
+                    <div class="text-danger mt-1">
+                        {{ form.resume.errors }}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="{% url 'listings' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Listings
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane me-2"></i>Submit Application
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+document.getElementById('applicationForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch('{% url "apply_for_job" job.id %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = '{% url "my_applications" %}';
+        } else {
+            alert(data.error || 'An error occurred while submitting your application.');
+        }
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}

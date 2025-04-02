@@ -1,0 +1,175 @@
+{% extends 'jobs/base.html' %}
+{% load static %}
+
+{% block title %}Current Jobs - JobZip{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h2 class="mb-4">Current Jobs</h2>
+    
+    <!-- Toast Container -->
+    <div class="toast-container"></div>
+    
+    <div class="row">
+        {% for enrollment in enrollments %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card bg-dark border-secondary h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title">{{ enrollment.job.title }}</h5>
+                        <button type="button" class="btn-close btn-close-white" aria-label="Close" onclick="closeCard(this)"></button>
+                    </div>
+                    
+                    <h6 class="text-muted mb-3">{{ enrollment.job.company }}</h6>
+                    <p class="card-text">{{ enrollment.job.description|truncatewords:30 }}</p>
+                    
+                    <div class="mt-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <small class="text-muted">
+                                <i class="fas fa-map-marker-alt me-1"></i>
+                                {{ enrollment.job.location }}
+                            </small>
+                            <small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>
+                                {{ enrollment.job.duration }}
+                            </small>
+                        </div>
+                        
+                        <div class="progress bg-secondary" style="height: 5px;">
+                            {% if enrollment.status == 'completed' %}
+                            <div class="progress-bar bg-success" style="width: 100%"></div>
+                            {% elif enrollment.status == 'in_progress' %}
+                            <div class="progress-bar bg-primary" style="width: 50%"></div>
+                            {% else %}
+                            <div class="progress-bar bg-warning" style="width: 25%"></div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-footer bg-dark border-secondary">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">Enrolled: {{ enrollment.enrolled_at|date:"M d, Y" }}</small>
+                        {% if enrollment.status != 'completed' %}
+                        <button class="btn btn-danger btn-sm" onclick="quitJob({{ enrollment.job.id }})">
+                            <i class="fas fa-times me-1"></i>Quit
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                You haven't enrolled in any jobs yet. Browse the <a href="{% url 'listings' %}" class="alert-link">job listings</a> to find opportunities!
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    // Toast notification function
+    function showToast(message, type = 'info') {
+        const toastContainer = document.querySelector('.toast-container');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `
+            <div class="d-flex justify-content-between align-items-center">
+                <span>${message}</span>
+                <button type="button" class="btn-close btn-close-white" onclick="this.parentElement.parentElement.remove()"></button>
+            </div>
+        `;
+        toastContainer.appendChild(toast);
+        setTimeout(() => toast.classList.add('show'), 100);
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // Close card function
+    function closeCard(button) {
+        const card = button.closest('.col-md-6');
+        card.style.transition = 'all 0.3s ease-in-out';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.8)';
+        setTimeout(() => card.remove(), 300);
+        showToast('Card removed successfully', 'success');
+    }
+
+    // Enhanced quit job function
+    function quitJob(jobId) {
+        if (confirm('Are you sure you want to quit this job?')) {
+            const button = event.target.closest('button');
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
+            
+            fetch(`/job/${jobId}/quit/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Successfully quit the job', 'success');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    showToast('Failed to quit the job', 'error');
+                    button.disabled = false;
+                    button.innerHTML = '<i class="fas fa-times me-1"></i>Quit';
+                }
+            })
+            .catch(error => {
+                showToast('An error occurred', 'error');
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-times me-1"></i>Quit';
+            });
+        }
+    }
+
+    // Post new job function (same as listing page)
+    function postNewJob() {
+        showToast('Redirecting to post new job...', 'info');
+        setTimeout(() => window.location.href = "{% url 'post_job' %}", 500);
+    }
+
+    // Accept/Reject application function
+    function handleApplication(applicationId, action) {
+        const button = event.target.closest('button');
+        button.disabled = true;
+        const originalHtml = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        fetch(`/application/${action}/${applicationId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showToast(`Application ${action}ed successfully`, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showToast(`Failed to ${action} application`, 'error');
+                button.disabled = false;
+                button.innerHTML = originalHtml;
+            }
+        })
+        .catch(error => {
+            showToast('An error occurred', 'error');
+            button.disabled = false;
+            button.innerHTML = originalHtml;
+        });
+    }
+</script>
+{% endblock %}
+{% endblock %}

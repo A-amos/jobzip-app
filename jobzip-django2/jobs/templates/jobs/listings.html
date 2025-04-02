@@ -1,0 +1,276 @@
+{% extends 'jobs/base.html' %}
+{% load static %}
+
+{% block title %}Job Listings - JobZip{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Search Section -->
+    <div class="row mb-4">
+        <div class="col-md-8 mx-auto">
+            <div class="search-bar bg-darker rounded-3 p-3">
+                <form method="GET" action="{% url 'listings' %}" class="row g-3">
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary">
+                                <i class="fas fa-search text-primary"></i>
+                            </span>
+                            <input type="text" name="q" class="form-control bg-dark border-secondary" placeholder="Search jobs..." value="{{ request.GET.q }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="input-group">
+                            <span class="input-group-text bg-dark border-secondary">
+                                <i class="fas fa-map-marker-alt text-primary"></i>
+                            </span>
+                            <input type="text" name="location" class="form-control bg-dark border-secondary" placeholder="Location..." value="{{ request.GET.location }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select name="type" class="form-select bg-dark border-secondary text-light">
+                            <option value="">Job Type</option>
+                            <option value="full_time" {% if request.GET.type == 'full_time' %}selected{% endif %}>Full Time</option>
+                            <option value="part_time" {% if request.GET.type == 'part_time' %}selected{% endif %}>Part Time</option>
+                            <option value="contract" {% if request.GET.type == 'contract' %}selected{% endif %}>Contract</option>
+                            <option value="internship" {% if request.GET.type == 'internship' %}selected{% endif %}>Internship</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search me-2"></i>Search
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Job Listings -->
+    <div class="row">
+        {% for job in jobs %}
+        <div class="col-lg-6 mb-4">
+            <div class="card bg-dark border-secondary h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h5 class="card-title mb-1">{{ job.title }}</h5>
+                            <div class="text-primary">{{ job.company }}</div>
+                        </div>
+                        <span class="badge bg-primary">{{ job.get_job_type_display }}</span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex flex-wrap gap-3">
+                            <div class="text-muted">
+                                <i class="fas fa-map-marker-alt me-2"></i>{{ job.location }}
+                            </div>
+                            <div class="text-success">
+                                <i class="fas fa-money-bill-wave me-2"></i>{{ job.salary }}
+                            </div>
+                            <div class="text-info">
+                                <i class="fas fa-clock me-2"></i>Posted {{ job.created_at|timesince }} ago
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="card-text text-muted mb-4">{{ job.description|truncatewords:50 }}</p>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-primary" onclick="applyForJob({{ job.id }})">
+                                <i class="fas fa-paper-plane me-2"></i>Apply Now
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" onclick="toggleBookmark({{ job.id }})">
+                                <i class="fas fa-bookmark me-2"></i>Save
+                            </button>
+                        </div>
+                        <small class="text-muted">{{ job.applications.count }} applications</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>No job listings found.
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if jobs.has_other_pages %}
+    <nav class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if jobs.has_previous %}
+            <li class="page-item">
+                <a class="page-link bg-dark border-secondary" href="?page={{ jobs.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.location %}&location={{ request.GET.location }}{% endif %}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+            
+            {% for num in jobs.paginator.page_range %}
+                {% if jobs.number == num %}
+                <li class="page-item active">
+                    <span class="page-link bg-primary border-primary">{{ num }}</span>
+                </li>
+                {% else %}
+                <li class="page-item">
+                    <a class="page-link bg-dark border-secondary" href="?page={{ num }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.location %}&location={{ request.GET.location }}{% endif %}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}">{{ num }}</a>
+                </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if jobs.has_next %}
+            <li class="page-item">
+                <a class="page-link bg-dark border-secondary" href="?page={{ jobs.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.location %}&location={{ request.GET.location }}{% endif %}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    <!-- Application Modal -->
+    <div class="modal fade" id="applicationModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content bg-dark">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title">Apply for Position</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="applicationForm" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <input type="hidden" name="job_id" id="job_id">
+                        
+                        <div class="mb-3">
+                            <label for="cover_letter" class="form-label">Cover Letter</label>
+                            <textarea class="form-control bg-darker border-secondary" id="cover_letter" name="cover_letter" rows="5" placeholder="Why are you a good fit for this position?"></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="resume" class="form-label">Resume (PDF)</label>
+                            <input type="file" class="form-control bg-darker border-secondary" id="resume" name="resume" accept=".pdf">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="submitApplication()">Submit Application</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.search-bar {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.form-select option {
+    background-color: #212529;
+    color: #fff;
+}
+
+.card {
+    transition: transform 0.2s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.bg-darker {
+    background-color: #1a1e21;
+}
+
+.pagination .page-link {
+    color: #fff;
+}
+
+.pagination .page-link:hover {
+    background-color: #2c3034;
+}
+
+.pagination .active .page-link {
+    z-index: 3;
+    color: #fff;
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+</style>
+
+<script>
+function applyForJob(jobId) {
+    document.getElementById('job_id').value = jobId;
+    new bootstrap.Modal(document.getElementById('applicationModal')).show();
+}
+
+function submitApplication() {
+    const form = document.getElementById('applicationForm');
+    const formData = new FormData(form);
+    
+    fetch('{% url "apply_job" %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Application submitted successfully!', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('applicationModal')).hide();
+            form.reset();
+        } else {
+            showToast(data.message || 'Error submitting application', 'error');
+        }
+    })
+    .catch(error => {
+        showToast('Error submitting application', 'error');
+    });
+}
+
+function toggleBookmark(jobId) {
+    fetch(`/jobs/${jobId}/bookmark/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+        } else {
+            showToast(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        showToast('Error toggling bookmark', 'error');
+    });
+}
+
+function showToast(message, type = 'info') {
+    const toastContainer = document.querySelector('.toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type} show`;
+    toast.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center p-3">
+            <span>${message}</span>
+            <button type="button" class="btn-close btn-close-white" onclick="this.parentElement.parentElement.remove()"></button>
+        </div>
+    `;
+    toastContainer.appendChild(toast);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+</script>
+{% endblock %}
