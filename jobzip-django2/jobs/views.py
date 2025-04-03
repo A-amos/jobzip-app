@@ -3,6 +3,7 @@ from django.contrib.auth import login, authenticate
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+import json
 from django.contrib import messages
 from django.utils import timezone
 from django.db import IntegrityError
@@ -10,29 +11,70 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from .models import Job, JobReview, JobEnrollment, Bookmark, Report, Comment, User, JobApplication, Notification, EmployerProfile, EmployeeProfile
 from .forms import UserRegistrationForm, CustomAuthenticationForm, JobPostForm, JobApplicationForm
+from django.urls import reverse
 
 def signup_view(request):
     if request.method == 'POST':
         form = UserRegistrationForm(request.POST)
         if form.is_valid():
-            user = form.save(commit=False)
-            user.user_type = form.cleaned_data['user_type']
-            user.save()
-            
-            # Create corresponding profile
-            if user.user_type == 'employer':
-                company_name = request.POST.get('company_name')
-                EmployerProfile.objects.create(user=user, company_name=company_name)
-            else:
-                EmployeeProfile.objects.create(user=user)
+            try:
+                user = form.save(commit=False)
+                user.user_type = form.cleaned_data['user_type']
+                user.save()
                 
-            login(request, user)
-            messages.success(request, 'Account created successfully!')
-            return redirect('home')
+                # Create corresponding profile
+                if user.user_type == 'employer':
+                    company_name = request.POST.get('company_name')
+                    if not company_name:
+                        raise ValueError("Company name is required for employer accounts")
+                    EmployerProfile.objects.create(user=user, company_name=company_name)
+                else:
+                    EmployeeProfile.objects.create(user=user)
+                    
+                login(request, user)
+                
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'success': True,
+                        'message': 'Account created successfully! Redirecting...',
+                        'redirect_url': reverse('home')
+                    })
+                else:
+                    messages.success(request, 'Account created successfully!')
+                    return redirect('home')
+            except ValueError as e:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'success': False,
+                        'errors': {'company_name': [str(e)]}
+                    })
+                else:
+                    messages.error(request, str(e))
+                    return render(request, 'jobs/signup.html', {'form': form})
+            except Exception as e:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({
+                        'success': False,
+                        'errors': {'__all__': ['An error occurred while creating your account. Please try again.']}
+                    })
+                else:
+                    messages.error(request, 'An error occurred while creating your account. Please try again.')
+                    return render(request, 'jobs/signup.html', {'form': form})
         else:
-            for field, errors in form.errors.items():
-                for error in errors:
-                    messages.error(request, f'{field.title()}: {error}')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                errors = {}
+                # Add form field errors
+                for field, error_list in form.errors.items():
+                    errors[field] = error_list
+                # Add non-field errors
+                if form.non_field_errors():
+                    errors['__all__'] = form.non_field_errors()
+                return JsonResponse({
+                    'success': False,
+                    'errors': errors
+                })
+            else:
+                return render(request, 'jobs/signup.html', {'form': form})
     else:
         form = UserRegistrationForm()
         
@@ -215,13 +257,14 @@ def job_reviews(request):
 
 @login_required
 def current_jobs(request):
+    """View for showing user's current jobs"""
     if request.user.user_type != 'employee':
         return redirect('home')
         
     enrollments = JobEnrollment.objects.filter(
         employee=request.user,
-        status='accepted'
-    ).select_related('job')
+        status__in=['accepted', 'in_progress', 'completed']
+    ).select_related('job').order_by('-enrolled_at')
     
     return render(request, 'jobs/current_jobs.html', {'enrollments': enrollments})
 
@@ -293,11 +336,20 @@ def apply_for_job(request, job_id):
                     related_job=job
                 )
                 
-                messages.success(request, 'Your application has been submitted successfully!')
-                return redirect('my_applications')
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Your application has been submitted successfully!'
+                })
             except IntegrityError:
-                messages.error(request, 'You have already applied for this job.')
-                return redirect('job_detail', job_id=job.id)
+                return JsonResponse({
+                    'success': False,
+                    'message': 'You have already applied for this job.'
+                })
+        else:
+            return JsonResponse({
+                'success': False,
+                'message': 'Please check your form inputs.'
+            })
     else:
         form = JobApplicationForm()
     
@@ -309,8 +361,14 @@ def apply_for_job(request, job_id):
 @login_required
 def my_applications(request):
     """View for showing user's job applications"""
-    applications = JobApplication.objects.filter(applicant=request.user).order_by('-applied_at')
-    return render(request, 'jobs/my_applications.html', {'applications': applications})
+    applications = JobEnrollment.objects.filter(employee=request.user).order_by('-enrolled_at')
+    context = {
+        'applications': applications,
+        'total_count': applications.count(),
+        'pending_count': applications.filter(status='pending').count(),
+        'accepted_count': applications.filter(status='accepted').count(),
+    }
+    return render(request, 'jobs/my_applications.html', context)
 
 @login_required
 @require_POST
@@ -323,12 +381,26 @@ def update_application_status(request, application_id):
     if application.job.employer != request.user:
         return JsonResponse({'error': 'Permission denied'}, status=403)
     
-    status = request.POST.get('status')
-    if status not in ['accepted', 'rejected']:
+    try:
+        data = json.loads(request.body)
+        status = data.get('status')
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+    
+    if status not in ['accepted', 'rejected', 'pending']:
         return JsonResponse({'error': 'Invalid status'}, status=400)
     
     application.status = status
     application.save()
+    
+    # Create JobEnrollment when application is accepted
+    if status == 'accepted':
+        JobEnrollment.objects.create(
+            job=application.job,
+            employee=application.applicant,
+            status='accepted',
+            progress=0
+        )
     
     # Create notification for applicant
     Notification.objects.create(
@@ -364,15 +436,80 @@ def view_cover_letter(request, application_id):
     return JsonResponse({'cover_letter': application.cover_letter or ''})
 
 @login_required
+@require_POST
+def update_progress(request, enrollment_id):
+    """Update the progress of a job enrollment"""
+    try:
+        data = json.loads(request.body)
+        progress = data.get('progress')
+        
+        if not isinstance(progress, int) or progress < 0 or progress > 100:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid progress value. Must be between 0 and 100.'
+            })
+            
+        enrollment = get_object_or_404(JobEnrollment, id=enrollment_id)
+        
+        # Only allow employer of the job to update progress
+        if request.user != enrollment.job.employer:
+            return JsonResponse({
+                'success': False,
+                'error': 'Permission denied. Only the employer can update progress.'
+            })
+            
+        enrollment.update_progress(progress)
+        
+        # Create notification for employee
+        Notification.objects.create(
+            user=enrollment.employee,
+            notification_type='current_job',
+            message=f'Your progress on {enrollment.job.title} has been updated to {progress}%'
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Progress updated successfully'
+        })
+        
+    except (ValueError, json.JSONDecodeError):
+        return JsonResponse({
+            'success': False,
+            'error': 'Invalid request data'
+        })
+    except JobEnrollment.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Job enrollment not found'
+        })
+
+@login_required
+@require_POST
 def quit_job(request, job_id):
     """View for quitting a job"""
-    if request.user.user_type != 'employee':
-        return JsonResponse({'error': 'Only employees can quit jobs'}, status=403)
+    try:
+        enrollment = get_object_or_404(JobEnrollment, job_id=job_id, employee=request.user)
+        enrollment.status = 'quit'
+        enrollment.quit_at = timezone.now()
+        enrollment.save()
         
-    enrollment = get_object_or_404(JobEnrollment, job_id=job_id, employee=request.user)
-    enrollment.delete()
-    
-    return JsonResponse({'success': True})
+        # Create notification for employer
+        Notification.objects.create(
+            user=enrollment.job.employer,
+            notification_type='current_job',
+            message=f'{request.user.username} has quit the job: {enrollment.job.title}'
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Job quit successfully'
+        })
+        
+    except JobEnrollment.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Job enrollment not found'
+        })
 
 @login_required
 @require_POST
@@ -436,3 +573,53 @@ def job_applications(request, job_id):
         'job': job,
         'applications': applications
     })
+
+@login_required
+@require_POST
+def update_job_progress(request, enrollment_id):
+    """Update the progress status of a job enrollment"""
+    if request.user.user_type != 'employee':
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    enrollment = get_object_or_404(JobEnrollment, id=enrollment_id, employee=request.user)
+    
+    try:
+        data = json.loads(request.body)
+        new_status = data.get('status')
+        
+        if new_status not in ['pending', 'in_progress', 'completed']:
+            return JsonResponse({'error': 'Invalid status'}, status=400)
+        
+        enrollment.status = new_status
+        enrollment.save()
+        
+        # Create notification for employer
+        Notification.objects.create(
+            user=enrollment.job.employer,
+            notification_type='job_progress',
+            message=f'{request.user.username} has updated their progress on {enrollment.job.title} to {new_status}',
+            related_job=enrollment.job
+        )
+        
+        return JsonResponse({'success': True})
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Invalid request data'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+def progress_tracker(request):
+    """View for employers to track employee progress"""
+    if request.user.user_type != 'employer':
+        return redirect('home')
+        
+    jobs = Job.objects.filter(employer=request.user).prefetch_related(
+        'jobenrollment_set',
+        'jobenrollment_set__employee'
+    ).order_by('-created_at')
+    
+    # Add enrollments to each job
+    for job in jobs:
+        job.enrollments = job.jobenrollment_set.all().order_by('-enrolled_at')
+    
+    return render(request, 'jobs/progress_tracker.html', {'jobs': jobs})

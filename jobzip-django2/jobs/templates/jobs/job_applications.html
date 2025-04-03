@@ -4,6 +4,7 @@
 {% block title %}Applications for {{ job.title }} - JobZip{% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="container-fluid py-4">
     <div class="row">
         <div class="col-md-8 mx-auto">
@@ -38,7 +39,7 @@
             <h5 class="mb-4">Applications ({{ applications.count }})</h5>
             
             {% for application in applications %}
-            <div class="card bg-dark border-secondary mb-3">
+            <div class="card bg-dark border-secondary mb-3" id="application-{{ application.id }}">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-3">
                         <div>
@@ -53,17 +54,17 @@
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li>
-                                    <button class="dropdown-item" onclick="updateStatus({{ application.id }}, 'accepted')">
+                                    <button type="button" class="dropdown-item" data-application-id="{{ application.id }}" data-status="accepted">
                                         <i class="fas fa-check text-success me-2"></i>Accept
                                     </button>
                                 </li>
                                 <li>
-                                    <button class="dropdown-item" onclick="updateStatus({{ application.id }}, 'rejected')">
+                                    <button type="button" class="dropdown-item" data-application-id="{{ application.id }}" data-status="rejected">
                                         <i class="fas fa-times text-danger me-2"></i>Reject
                                     </button>
                                 </li>
                                 <li>
-                                    <button class="dropdown-item" onclick="updateStatus({{ application.id }}, 'pending')">
+                                    <button type="button" class="dropdown-item" data-application-id="{{ application.id }}" data-status="pending">
                                         <i class="fas fa-clock text-warning me-2"></i>Mark as Pending
                                     </button>
                                 </li>
@@ -102,23 +103,125 @@
 </div>
 
 <script>
-function updateStatus(applicationId, status) {
+// Function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Function to update application status
+function handleStatusUpdate(applicationId, status) {
+    const csrftoken = getCookie('csrftoken');
+    
+    if (!csrftoken) {
+        console.error('CSRF token not found');
+        return;
+    }
+
+    // Show loading state
+    const button = event.target.closest('button');
+    const originalContent = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Updating...';
+    button.disabled = true;
+
     fetch(`/application/${applicationId}/status/`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'X-CSRFToken': csrftoken
         },
         body: JSON.stringify({ status: status })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
-            location.reload();
+            // Update the badge
+            const badge = document.querySelector(`#application-${applicationId} .badge`);
+            if (badge) {
+                const statusClasses = {
+                    'accepted': 'bg-success',
+                    'rejected': 'bg-danger',
+                    'pending': 'bg-warning'
+                };
+                
+                badge.className = `badge ${statusClasses[status]}`;
+                badge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            }
+
+            // Close dropdown
+            const dropdown = button.closest('.dropdown-menu');
+            bootstrap.Dropdown.getInstance(dropdown).hide();
+
+            // Show success message
+            showToast('Status updated successfully', 'success');
         } else {
-            alert(data.message);
+            showToast(data.message || 'Error updating status', 'danger');
         }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error updating application status', 'danger');
+    })
+    .finally(() => {
+        // Restore button state
+        button.innerHTML = originalContent;
+        button.disabled = false;
     });
+}
+
+// Add event listeners after DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.dropdown-item[data-application-id]').forEach(button => {
+        button.addEventListener('click', function() {
+            const applicationId = this.dataset.applicationId;
+            const status = this.dataset.status;
+            handleStatusUpdate(applicationId, status);
+        });
+    });
+});
+
+// Toast notification function
+function showToast(message, type = 'info') {
+    const toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        const container = document.createElement('div');
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast);
+    bsToast.show();
+    
+    toast.addEventListener('hidden.bs.toast', () => toast.remove());
 }
 </script>
 {% endblock %}

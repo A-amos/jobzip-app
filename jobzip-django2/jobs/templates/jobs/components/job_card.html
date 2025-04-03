@@ -1,0 +1,56 @@
+<div class="card bg-dark border-secondary h-100 shadow">
+    <div class="card-header bg-dark border-secondary py-3">
+        <h4 class="card-title mb-2">{{ job.title }}</h4>
+        <p class="text-primary fs-5 mb-0">{{ job.company }}</p>
+    </div>
+    
+    <div class="card-body p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <span class="badge {% if job.status == 'open' %}bg-success{% else %}bg-danger{% endif %} px-3 py-2">
+                {{ job.get_status_display }}
+            </span>
+            <div class="text-info">
+                <i class="fas fa-clock me-2"></i>Posted {{ job.created_at|timesince }} ago
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-4 mb-4">
+            <div class="text-muted fs-6">
+                <i class="fas fa-map-marker-alt me-2"></i>{{ job.location }}
+            </div>
+            <div class="text-success fs-6">
+                <i class="fas fa-money-bill-wave me-2"></i>{{ job.salary }}
+            </div>
+        </div>
+
+        <p class="card-text text-muted mb-4 fs-6">{{ job.description|truncatewords:50 }}</p>
+
+        <div class="d-flex flex-wrap gap-3 mt-auto">
+            <a href="{% url 'job_applications' job.id %}" class="btn btn-primary btn-lg">
+                <i class="fas fa-users me-2"></i>Applications ({{ job.applications.count }})
+            </a>
+            {% if job.status == 'open' %}
+            <button onclick="closeJob({{ job.id }})" class="btn btn-outline-danger btn-lg">
+                <i class="fas fa-times-circle me-2"></i>Close
+            </button>
+            {% else %}
+            <button onclick="reopenJob({{ job.id }})" class="btn btn-outline-success btn-lg">
+                <i class="fas fa-redo me-2"></i>Reopen
+            </button>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="card-footer bg-dark border-secondary py-3">
+        <div class="d-flex justify-content-between align-items-center text-muted">
+            <div>
+                <i class="fas fa-calendar-alt me-2"></i>
+                Deadline: {{ job.deadline|date:"M d, Y" }}
+            </div>
+            <div>
+                <i class="fas fa-user-friends me-2"></i>
+                {{ job.employees_required }} position{{ job.employees_required|pluralize }}
+            </div>
+        </div>
+    </div>
+</div>

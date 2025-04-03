@@ -32,6 +32,11 @@
                             {% if listing_notifications %}<span class="notification-badge">{{ listing_notifications }}</span>{% endif %}
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="{% url 'progress_tracker' %}" class="nav-link {% if request.resolver_match.url_name == 'progress_tracker' %}active{% endif %}">
+                            <i class="fas fa-tasks"></i> Progress Tracker
+                        </a>
+                    </li>
                     {% endif %}
                     <li class="nav-item">
                         <a href="{% url 'job_reviews' %}" class="nav-link {% if request.resolver_match.url_name == 'job_reviews' %}active{% endif %}">
@@ -46,18 +51,18 @@
                             {% if current_job_notifications %}<span class="notification-badge">{{ current_job_notifications }}</span>{% endif %}
                         </a>
                     </li>
-                    {% endif %}
                     <li class="nav-item">
                         <a href="{% url 'bookmarks' %}" class="nav-link {% if request.resolver_match.url_name == 'bookmarks' %}active{% endif %}">
                             <i class="fas fa-bookmark"></i> Bookmarks
                             {% if bookmark_notifications %}<span class="notification-badge">{{ bookmark_notifications }}</span>{% endif %}
                         </a>
                     </li>
-                    <li class="nav-item">
+                    {% endif %}
+                    <!-- <li class="nav-item">
                         <a href="{% url 'report' %}" class="nav-link {% if request.resolver_match.url_name == 'report' %}active{% endif %}">
                             <i class="fas fa-flag"></i> Report
                         </a>
-                    </li>
+                    </li> -->
                 </ul>
             </nav>
         </div>
@@ -101,9 +106,12 @@
                             </li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
-                                <a class="dropdown-item text-danger" href="{% url 'logout' %}">
-                                    <i class="fas fa-sign-out-alt me-2"></i>Logout
-                                </a>
+                                <form method="post" action="{% url 'logout' %}" class="m-0">
+                                    {% csrf_token %}
+                                    <button type="submit" class="dropdown-item text-danger">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                    </button>
+                                </form>
                             </li>
                         </ul>
                     </div>

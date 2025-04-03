@@ -56,6 +56,22 @@ class UserRegistrationForm(UserCreationForm):
         ]
     )
     
+    company_name = forms.CharField(
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Company Name',
+            'pattern': '^[a-zA-Z]{3,20}$',
+            'title': 'Company name must be 3-20 characters long and can only contain letters'
+        }),
+        validators=[
+            RegexValidator(
+                regex='^[a-zA-Z]{3,20}$',
+                message='Company name must be 3-20 characters long and can only contain letters',
+                code='invalid_company_name'
+            )
+        ]
+    )
+    
     email = forms.EmailField(
         widget=forms.EmailInput(attrs={
             'class': 'form-control',

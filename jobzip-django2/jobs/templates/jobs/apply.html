@@ -5,6 +5,29 @@
 
 {% block content %}
 <div class="container-fluid py-4">
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed top-0 end-0 p-3"></div>
+
+    <!-- Success Modal -->
+    <div class="modal fade" id="successModal" tabindex="-1" aria-labelledby="successModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content bg-dark border-success">
+                <div class="modal-header border-success">
+                    <h5 class="modal-title text-success" id="successModalLabel">
+                        <i class="fas fa-check-circle me-2"></i>Application Submitted
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Your application has been submitted successfully! You will be redirected to the home page to check your application status.</p>
+                </div>
+                <div class="modal-footer border-success">
+                    <button type="button" class="btn btn-success" data-bs-dismiss="modal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Job Details -->
     <div class="card bg-dark border-secondary mb-4">
         <div class="card-body">
@@ -86,9 +109,44 @@
 
 {% block extra_js %}
 <script>
+function showToast(message, type = 'info') {
+    const toastContainer = document.querySelector('.toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                ${message}
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, {
+        autohide: true,
+        delay: 3000,
+        animation: true
+    });
+    bsToast.show();
+    
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
+
 document.getElementById('applicationForm').addEventListener('submit', function(e) {
     e.preventDefault();
     const formData = new FormData(this);
+    const submitButton = this.querySelector('button[type="submit"]');
+    
+    // Disable submit button and show loading state
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting...';
     
     fetch('{% url "apply_for_job" job.id %}', {
         method: 'POST',
@@ -100,10 +158,27 @@ document.getElementById('applicationForm').addEventListener('submit', function(e
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            window.location.href = '{% url "my_applications" %}';
+            // Show success modal
+            const successModal = new bootstrap.Modal(document.getElementById('successModal'));
+            successModal.show();
+            
+            // When modal is hidden, redirect to home
+            document.getElementById('successModal').addEventListener('hidden.bs.modal', function () {
+                window.location.href = '{% url "home" %}';
+            });
         } else {
-            alert(data.error || 'An error occurred while submitting your application.');
+            showToast(data.message, 'danger');
+            // Re-enable submit button
+            submitButton.disabled = false;
+            submitButton.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Application';
         }
+    })
+    .catch(error => {
+        showToast('An error occurred while submitting your application', 'danger');
+        console.error('Error:', error);
+        // Re-enable submit button
+        submitButton.disabled = false;
+        submitButton.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit Application';
     });
 });
 </script>

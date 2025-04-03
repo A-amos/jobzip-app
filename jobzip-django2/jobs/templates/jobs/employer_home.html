@@ -64,46 +64,7 @@
                 </div>
                 <div class="card-body">
                     {% for application in recent_applications %}
-                    <div class="mb-3 pb-3 border-bottom border-secondary {% if forloop.last %}border-0 pb-0 mb-0{% endif %}" id="application-{{ application.id }}">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <div>
-                                <h6 class="mb-1">{{ application.job.title }}</h6>
-                                <div class="text-primary mb-2">
-                                    Applied by: {{ application.applicant.username }}
-                                    <small class="text-muted ms-2">{{ application.applied_at|timesince }} ago</small>
-                                </div>
-                                <div class="mb-2">
-                                    {% if application.cover_letter %}
-                                    <button class="btn btn-link text-primary p-0 me-3" onclick="viewCoverLetter({{ application.id }});">
-                                        <i class="fas fa-file-alt me-1"></i>View Cover Letter
-                                    </button>
-                                    {% endif %}
-                                    {% if application.resume %}
-                                    <a href="{{ application.resume.url }}" class="btn btn-link text-primary p-0" target="_blank">
-                                        <i class="fas fa-file-pdf me-1"></i>View Resume
-                                    </a>
-                                    {% endif %}
-                                </div>
-                                <div class="application-status">
-                                    {% if application.status == 'accepted' %}
-                                    <span class="badge bg-success">Accepted</span>
-                                    {% elif application.status == 'rejected' %}
-                                    <span class="badge bg-danger">Rejected</span>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            {% if application.status == 'pending' %}
-                            <div class="btn-group action-buttons">
-                                <button class="btn btn-success btn-sm me-2" onclick="handleApplication({{ application.id }}, 'accept')">
-                                    <i class="fas fa-check me-1"></i>Accept
-                                </button>
-                                <button class="btn btn-danger btn-sm" onclick="handleApplication({{ application.id }}, 'reject')">
-                                    <i class="fas fa-times me-1"></i>Reject
-                                </button>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
+                        {% include 'jobs/components/application_card.html' with application=application %}
                     {% empty %}
                     <p class="text-muted mb-0">No recent applications.</p>
                     {% endfor %}

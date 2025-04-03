@@ -8,21 +8,28 @@
     <h2 class="mb-4">Current Jobs</h2>
     
     <!-- Toast Container -->
-    <div class="toast-container"></div>
+    <div class="toast-container position-fixed top-0 end-0 p-3"></div>
     
-    <div class="row">
+    <div class="row g-4">
         {% for enrollment in enrollments %}
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card bg-dark border-secondary h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="card-title">{{ enrollment.job.title }}</h5>
-                        <button type="button" class="btn-close btn-close-white" aria-label="Close" onclick="closeCard(this)"></button>
+        <div class="col-12 col-md-6 col-lg-4">
+            <div class="card h-100 bg-dark text-white border-secondary">
+                <!-- Card Header -->
+                <div class="card-header bg-dark border-secondary">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0 text-truncate">{{ enrollment.job.title }}</h5>
+                        <span class="badge {% if enrollment.status == 'completed' %}bg-success{% elif enrollment.status == 'in_progress' %}bg-primary{% elif enrollment.status == 'quit' %}bg-danger{% else %}bg-warning{% endif %}">
+                            {{ enrollment.status|title }}
+                        </span>
                     </div>
-                    
+                </div>
+                
+                <!-- Card Body -->
+                <div class="card-body">
                     <h6 class="text-muted mb-3">{{ enrollment.job.company }}</h6>
                     <p class="card-text">{{ enrollment.job.description|truncatewords:30 }}</p>
                     
+                    <!-- Job Details -->
                     <div class="mt-3">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <small class="text-muted">
@@ -35,25 +42,49 @@
                             </small>
                         </div>
                         
-                        <div class="progress bg-secondary" style="height: 5px;">
-                            {% if enrollment.status == 'completed' %}
-                            <div class="progress-bar bg-success" style="width: 100%"></div>
-                            {% elif enrollment.status == 'in_progress' %}
-                            <div class="progress-bar bg-primary" style="width: 50%"></div>
-                            {% else %}
-                            <div class="progress-bar bg-warning" style="width: 25%"></div>
-                            {% endif %}
+                        <!-- Progress Section (Only show if not quit) -->
+                        {% if enrollment.status != 'quit' %}
+                        <div class="mt-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="text-muted">Progress</span>
+                                <span class="text-muted">{{ enrollment.progress }}%</span>
+                            </div>
+                            <div class="progress bg-secondary" style="height: 8px">
+                                <div class="progress-bar {% if enrollment.status == 'completed' %}bg-success{% elif enrollment.status == 'in_progress' %}bg-primary{% else %}bg-warning{% endif %}"
+                                     role="progressbar"
+                                     style="width: {{ enrollment.progress }}%;"
+                                     aria-valuenow="{{ enrollment.progress }}"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100">
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Timeline -->
+                        <div class="mt-3">
+                            <div class="d-flex justify-content-between">
+                                <small class="text-muted">Started: {{ enrollment.enrolled_at|date:"M d, Y" }}</small>
+                                {% if enrollment.completed_at %}
+                                <small class="text-success">Completed: {{ enrollment.completed_at|date:"M d, Y" }}</small>
+                                {% elif enrollment.quit_at %}
+                                <small class="text-danger">Quit: {{ enrollment.quit_at|date:"M d, Y" }}</small>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted d-block mt-1">Last updated: {{ enrollment.last_updated|date:"M d, Y H:i" }}</small>
                         </div>
                     </div>
                 </div>
                 
+                <!-- Card Footer -->
                 <div class="card-footer bg-dark border-secondary">
                     <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">Enrolled: {{ enrollment.enrolled_at|date:"M d, Y" }}</small>
-                        {% if enrollment.status != 'completed' %}
-                        <button class="btn btn-danger btn-sm" onclick="quitJob({{ enrollment.job.id }})">
-                            <i class="fas fa-times me-1"></i>Quit
+                        {% if enrollment.status != 'completed' and enrollment.status != 'quit' %}
+                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="quitJob({{ enrollment.job.id }})">
+                            <i class="fas fa-sign-out-alt me-1"></i>Quit Job
                         </button>
+                        {% else %}
+                        <div></div>
                         {% endif %}
                     </div>
                 </div>
@@ -62,8 +93,7 @@
         {% empty %}
         <div class="col-12">
             <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i>
-                You haven't enrolled in any jobs yet. Browse the <a href="{% url 'listings' %}" class="alert-link">job listings</a> to find opportunities!
+                <i class="fas fa-info-circle me-2"></i>You don't have any current jobs. Browse the job listings to find opportunities!
             </div>
         </div>
         {% endfor %}
@@ -72,104 +102,80 @@
 
 {% block extra_js %}
 <script>
-    // Toast notification function
-    function showToast(message, type = 'info') {
-        const toastContainer = document.querySelector('.toast-container');
-        const toast = document.createElement('div');
-        toast.className = `toast ${type}`;
-        toast.innerHTML = `
-            <div class="d-flex justify-content-between align-items-center">
-                <span>${message}</span>
-                <button type="button" class="btn-close btn-close-white" onclick="this.parentElement.parentElement.remove()"></button>
+function showToast(message, type = 'info') {
+    const toastContainer = document.querySelector('.toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast align-items-center text-white bg-${type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.setAttribute('aria-live', 'assertive');
+    toast.setAttribute('aria-atomic', 'true');
+    
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">
+                ${message}
             </div>
-        `;
-        toastContainer.appendChild(toast);
-        setTimeout(() => toast.classList.add('show'), 100);
-        setTimeout(() => {
-            toast.classList.remove('show');
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
-    }
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+    `;
+    
+    toastContainer.appendChild(toast);
+    const bsToast = new bootstrap.Toast(toast, {
+        autohide: true,
+        delay: 5000,
+        animation: true,
+        allowList: ['button', 'div']
+    });
+    bsToast.show();
+    
+    toast.addEventListener('hidden.bs.toast', () => {
+        toast.remove();
+    });
+}
 
-    // Close card function
-    function closeCard(button) {
-        const card = button.closest('.col-md-6');
-        card.style.transition = 'all 0.3s ease-in-out';
-        card.style.opacity = '0';
-        card.style.transform = 'scale(0.8)';
-        setTimeout(() => card.remove(), 300);
-        showToast('Card removed successfully', 'success');
+function quitJob(jobId) {
+    if (!confirm('Are you sure you want to quit this job? This action cannot be undone.')) {
+        return;
     }
+    
+    fetch(`/jobs/quit_job/${jobId}/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('You have quit the job', 'info');
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            showToast(data.error || 'Failed to quit job', 'danger');
+        }
+    })
+    .catch(error => {
+        showToast('Error quitting job', 'danger');
+        console.error('Error:', error);
+    });
+}
 
-    // Enhanced quit job function
-    function quitJob(jobId) {
-        if (confirm('Are you sure you want to quit this job?')) {
-            const button = event.target.closest('button');
-            button.disabled = true;
-            button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Processing...';
-            
-            fetch(`/job/${jobId}/quit/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-                    'Content-Type': 'application/json',
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showToast('Successfully quit the job', 'success');
-                    setTimeout(() => location.reload(), 1000);
-                } else {
-                    showToast('Failed to quit the job', 'error');
-                    button.disabled = false;
-                    button.innerHTML = '<i class="fas fa-times me-1"></i>Quit';
-                }
-            })
-            .catch(error => {
-                showToast('An error occurred', 'error');
-                button.disabled = false;
-                button.innerHTML = '<i class="fas fa-times me-1"></i>Quit';
-            });
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
         }
     }
-
-    // Post new job function (same as listing page)
-    function postNewJob() {
-        showToast('Redirecting to post new job...', 'info');
-        setTimeout(() => window.location.href = "{% url 'post_job' %}", 500);
-    }
-
-    // Accept/Reject application function
-    function handleApplication(applicationId, action) {
-        const button = event.target.closest('button');
-        button.disabled = true;
-        const originalHtml = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-        fetch(`/application/${action}/${applicationId}/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showToast(`Application ${action}ed successfully`, 'success');
-                setTimeout(() => location.reload(), 1000);
-            } else {
-                showToast(`Failed to ${action} application`, 'error');
-                button.disabled = false;
-                button.innerHTML = originalHtml;
-            }
-        })
-        .catch(error => {
-            showToast('An error occurred', 'error');
-            button.disabled = false;
-            button.innerHTML = originalHtml;
-        });
-    }
+    return cookieValue;
+}
 </script>
 {% endblock %}
 {% endblock %}

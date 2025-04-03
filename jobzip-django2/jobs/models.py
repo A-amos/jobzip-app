@@ -39,10 +39,32 @@ class CompanyPicture(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
 class JobEnrollment(models.Model):
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+        ('quit', 'Quit')
+    )
     job = models.ForeignKey(Job, on_delete=models.CASCADE)
     employee = models.ForeignKey(User, on_delete=models.CASCADE)
-    status = models.CharField(max_length=20, default='pending')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    progress = models.IntegerField(default=0)  # Progress percentage (0-100)
     enrolled_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    def update_progress(self, new_progress):
+        self.progress = min(max(0, new_progress), 100)  # Ensure progress is between 0-100
+        if self.progress == 100:
+            self.status = 'completed'
+            self.completed_at = timezone.now()
+        elif self.progress > 0:
+            self.status = 'in_progress'
+        self.save()
+
+    def __str__(self):
+        return f"{self.employee.username}'s enrollment in {self.job.title}"
 
 class JobReview(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE)

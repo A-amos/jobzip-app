@@ -4,103 +4,456 @@
 {% block title %}My Applications - JobZip{% endblock %}
 
 {% block content %}
-<div class="container-fluid py-4">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2>My Applications</h2>
-        <a href="{% url 'listings' %}" class="btn btn-primary">
-            <i class="fas fa-search me-2"></i>Browse More Jobs
-        </a>
+<div class="applications-page">
+    <!-- Sidebar Stats -->
+    <div class="stats-sidebar">
+        <div class="stats-header mb-4">
+            <h2 class="text-light mb-2">My Applications</h2>
+            <p class="text-muted">Track your career progress</p>
+        </div>
+        
+        <div class="stats-cards">
+            <div class="stat-card bg-success bg-opacity-25 border-success">
+                <div class="stat-icon">
+                    <i class="fas fa-check-circle text-success"></i>
+                </div>
+                <div class="stat-info">
+                    <h3 class="text-success">{{ total_count }}</h3>
+                    <p class="text-muted mb-0">Total Applications</p>
+                </div>
+            </div>
+            
+            <div class="stat-card bg-warning bg-opacity-25 border-warning">
+                <div class="stat-icon">
+                    <i class="fas fa-clock text-warning"></i>
+                </div>
+                <div class="stat-info">
+                    <h3 class="text-warning">{{ pending_count }}</h3>
+                    <p class="text-muted mb-0">Pending</p>
+                </div>
+            </div>
+            
+            <div class="stat-card bg-info bg-opacity-25 border-info">
+                <div class="stat-icon">
+                    <i class="fas fa-check-double text-info"></i>
+                </div>
+                <div class="stat-info">
+                    <h3 class="text-info">{{ accepted_count }}</h3>
+                    <p class="text-muted mb-0">Accepted</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-buttons mt-4">
+            <a href="{% url 'listings' %}" class="btn btn-primary btn-lg w-100 mb-3">
+                <i class="fas fa-search me-2"></i>Browse Jobs
+            </a>
+        </div>
     </div>
 
-    <!-- Applications List -->
-    <div class="row">
-        {% for application in applications %}
-        <div class="col-md-6 col-lg-4 mb-4">
-            <div class="card bg-dark border-secondary h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-3">
-                        <div>
-                            <h5 class="card-title mb-1">{{ application.job.title }}</h5>
-                            <h6 class="text-primary mb-2">{{ application.job.company }}</h6>
-                        </div>
-                        <span class="badge {% if application.status == 'accepted' %}bg-success{% elif application.status == 'rejected' %}bg-danger{% else %}bg-warning{% endif %}">
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Filter Bar -->
+        <div class="filter-bar mb-4">
+            <div class="d-flex gap-3">
+                <button class="btn btn-dark active" data-filter="all">All Applications</button>
+                <button class="btn btn-dark" data-filter="pending">Pending</button>
+                <button class="btn btn-dark" data-filter="accepted">Accepted</button>
+                <button class="btn btn-dark" data-filter="rejected">Rejected</button>
+            </div>
+        </div>
+
+        <!-- Applications Grid -->
+        <div class="applications-grid">
+            {% for application in applications %}
+            <div class="application-card" data-status="{{ application.status }}" data-job-id="{{ application.job.id }}">
+                <div class="card bg-dark h-100 shadow-lg hover-card">
+                    <div class="card-body position-relative">
+                        <!-- Status Badge -->
+                        <div class="status-badge status-{{ application.status }}">
+                            <i class="fas {% if application.status == 'accepted' %}fa-check{% elif application.status == 'rejected' %}fa-times{% else %}fa-clock{% endif %}"></i>
                             {{ application.status|title }}
-                        </span>
-                    </div>
-                    
-                    <div class="d-flex flex-wrap gap-3 mb-3">
-                        <div class="d-flex align-items-center text-muted">
-                            <i class="fas fa-map-marker-alt me-2"></i>
-                            {{ application.job.location }}
                         </div>
-                        <div class="d-flex align-items-center text-muted">
-                            <i class="fas fa-clock me-2"></i>
-                            {{ application.job.duration }}
+
+                        <!-- Company Logo Placeholder -->
+                        <div class="company-logo mb-3">
+                            <i class="fas fa-building"></i>
                         </div>
-                        <div class="d-flex align-items-center text-success">
-                            <i class="fas fa-money-bill-wave me-2"></i>
-                            {{ application.job.salary }}
+
+                        <!-- Job Info -->
+                        <h5 class="job-title mb-2">{{ application.job.title }}</h5>
+                        <h6 class="company-name mb-3">{{ application.job.company }}</h6>
+
+                        <!-- Job Details -->
+                        <div class="job-details">
+                            <div class="detail-item">
+                                <i class="fas fa-map-marker-alt text-warning"></i>
+                                {{ application.job.location }}
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-clock text-primary"></i>
+                                {{ application.job.duration }}
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-money-bill-wave text-success"></i>
+                                {{ application.job.salary }}
+                            </div>
                         </div>
-                    </div>
-                    
-                    {% if application.cover_letter %}
-                    <div class="mb-3">
-                        <h6 class="mb-2">Your Cover Letter</h6>
-                        <p class="card-text text-muted">{{ application.cover_letter|truncatewords:50 }}</p>
-                    </div>
-                    {% endif %}
-                    
-                    {% if application.resume %}
-                    <div class="mb-3">
-                        <h6 class="mb-2">Your Resume</h6>
-                        <a href="{{ application.resume.url }}" class="btn btn-outline-primary btn-sm" target="_blank">
-                            <i class="fas fa-file-alt me-2"></i>View Resume
-                        </a>
-                    </div>
-                    {% endif %}
-                </div>
-                
-                <div class="card-footer bg-dark border-secondary">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <small class="text-muted">Applied {{ application.applied_at|timesince }} ago</small>
-                        {% if application.status == 'pending' %}
-                        <button class="btn btn-danger btn-sm" onclick="withdrawApplication({{ application.job.id }})">
-                            <i class="fas fa-times me-2"></i>Withdraw
-                        </button>
+
+                        <!-- Cover Letter Preview -->
+                        {% if application.cover_letter %}
+                        <div class="cover-letter-preview">
+                            <h6 class="section-title">
+                                <i class="fas fa-envelope text-info me-2"></i>Cover Letter
+                            </h6>
+                            <p class="preview-text">{{ application.cover_letter|truncatewords:20 }}</p>
+                        </div>
                         {% endif %}
+
+                        <!-- Action Buttons -->
+                        <div class="action-buttons mt-3">
+                            {% if application.resume %}
+                            <a href="{{ application.resume.url }}" class="btn btn-outline-light btn-sm" target="_blank">
+                                <i class="fas fa-file-alt me-2"></i>View Resume
+                            </a>
+                            {% endif %}
+                            {% if application.status == 'pending' %}
+                            <button class="btn btn-outline-danger btn-sm" onclick="withdrawApplication({{ application.job.id }})">
+                                <i class="fas fa-times me-2"></i>Withdraw
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="card-footer bg-darker border-secondary">
+                        <small class="text-muted">
+                            <i class="fas fa-calendar-alt me-2"></i>
+                            Applied {{ application.enrolled_at|timesince }} ago
+                        </small>
                     </div>
                 </div>
             </div>
-        </div>
-        {% empty %}
-        <div class="col-12">
-            <div class="alert alert-info">
-                <i class="fas fa-info-circle me-2"></i>
-                You haven't applied to any jobs yet. Browse our <a href="{% url 'listings' %}" class="alert-link">job listings</a> to find opportunities!
+            {% empty %}
+            <div class="empty-state text-center">
+                <div class="empty-icon mb-4">
+                    <i class="fas fa-paper-plane fa-3x text-primary"></i>
+                </div>
+                <h3 class="text-light mb-3">No Applications Yet</h3>
+                <p class="text-muted mb-4">Ready to start your career journey? Browse our job listings and apply today!</p>
+                <a href="{% url 'listings' %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-search me-2"></i>Explore Jobs
+                </a>
             </div>
+            {% endfor %}
         </div>
-        {% endfor %}
     </div>
 </div>
 
+<style>
+.applications-page {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 2rem;
+    padding: 2rem;
+    min-height: calc(100vh - 60px);
+}
+
+.stats-sidebar {
+    position: sticky;
+    top: 2rem;
+    height: fit-content;
+}
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 10px;
+    border: 1px solid;
+    margin-bottom: 1rem;
+}
+
+.stat-icon {
+    font-size: 2rem;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.stat-info h3 {
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+.filter-bar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--bs-dark);
+    padding: 1rem 0;
+}
+
+.applications-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.application-card {
+    height: 100%;
+}
+
+.hover-card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.hover-card:hover {
+    transform: translateY(-5px);
+}
+
+.status-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.status-accepted {
+    background: rgba(25, 135, 84, 0.2);
+    color: #198754;
+}
+
+.status-rejected {
+    background: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+}
+
+.status-pending {
+    background: rgba(255, 193, 7, 0.2);
+    color: #ffc107;
+}
+
+.company-logo {
+    width: 60px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: var(--bs-primary);
+}
+
+.job-title {
+    color: white;
+    font-size: 1.25rem;
+    line-height: 1.4;
+}
+
+.company-name {
+    color: var(--bs-info);
+    font-size: 1rem;
+}
+
+.job-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin: 1.5rem 0;
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: #adb5bd;
+}
+
+.section-title {
+    color: white;
+    font-size: 0.875rem;
+    margin-bottom: 0.75rem;
+}
+
+.preview-text {
+    color: #adb5bd;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin: 0;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.empty-state {
+    grid-column: 1 / -1;
+    padding: 4rem;
+}
+
+.empty-icon {
+    opacity: 0.5;
+}
+
+.bg-darker {
+    background: rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 992px) {
+    .applications-page {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-sidebar {
+        position: static;
+    }
+
+    .stats-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .applications-page {
+        padding: 1rem;
+    }
+
+    .filter-bar .d-flex {
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+    }
+
+    .filter-bar button {
+        white-space: nowrap;
+    }
+}
+</style>
+
 {% block extra_js %}
 <script>
+// Filter functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const filterButtons = document.querySelectorAll('.filter-bar button');
+    const cards = document.querySelectorAll('.application-card');
+
+    filterButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const filter = button.dataset.filter;
+            
+            // Update active button
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            
+            // Filter cards
+            cards.forEach(card => {
+                if (filter === 'all' || card.dataset.status === filter) {
+                    card.style.display = '';
+                    // Add animation
+                    card.style.opacity = '0';
+                    card.style.transform = 'translateY(20px)';
+                    setTimeout(() => {
+                        card.style.opacity = '1';
+                        card.style.transform = 'translateY(0)';
+                    }, 50);
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+    });
+});
+
 function withdrawApplication(jobId) {
-    if (confirm('Are you sure you want to withdraw your application?')) {
-        fetch(`/job/withdraw/${jobId}/`, {
+    if (confirm('Are you sure you want to withdraw this application?')) {
+        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        fetch(`/job/${jobId}/withdraw/`, {
             method: 'POST',
             headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
-                location.reload();
+                const card = document.querySelector(`[data-job-id="${jobId}"]`);
+                card.style.transition = 'all 0.3s ease-out';
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                
+                setTimeout(() => {
+                    card.remove();
+                    
+                    // Show success toast
+                    showToast('Application withdrawn successfully', 'success');
+                    
+                    // Update stats
+                    updateStats();
+                    
+                    // Check if there are no more applications
+                    const remainingCards = document.querySelectorAll('.application-card');
+                    if (remainingCards.length === 0) {
+                        location.reload(); // Show empty state
+                    }
+                }, 300);
+            } else {
+                throw new Error(data.message || 'Failed to withdraw application');
             }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast(error.message || 'Error withdrawing application', 'danger');
         });
     }
+}
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
+    toast.style.zIndex = '1050';
+    toast.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>
+        ${message}
+        <button type="button" class="btn-close ms-3" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.remove();
+    }, 5000);
+}
+
+function updateStats() {
+    const cards = document.querySelectorAll('.application-card');
+    const stats = {
+        total: cards.length,
+        pending: Array.from(cards).filter(card => card.dataset.status === 'pending').length,
+        accepted: Array.from(cards).filter(card => card.dataset.status === 'accepted').length
+    };
+    
+    document.querySelector('.stat-card:nth-child(1) h3').textContent = stats.total;
+    document.querySelector('.stat-card:nth-child(2) h3').textContent = stats.pending;
+    document.querySelector('.stat-card:nth-child(3) h3').textContent = stats.accepted;
 }
 </script>
 {% endblock %}
