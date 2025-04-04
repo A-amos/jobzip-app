@@ -96,6 +96,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (this.value === 'employer') {
                 companyNameInput.setAttribute('required', '');
                 companyNameInput.value = ''; // Clear the field
+                companyNameInput.placeholder = 'Enter company name'; // Add placeholder
             } else {
                 companyNameInput.removeAttribute('required');
                 companyNameInput.value = 'none'; // Clear the field when switching to employee
