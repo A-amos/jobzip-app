@@ -95,6 +95,7 @@ document.addEventListener('DOMContentLoaded', function() {
             employerFields.style.display = this.value === 'employer' ? 'block' : 'none';
             if (this.value === 'employer') {
                 companyNameInput.setAttribute('required', '');
+                companyNameInput.value = ''; // Clear the field
             } else {
                 companyNameInput.removeAttribute('required');
                 companyNameInput.value = 'none'; // Clear the field when switching to employee
